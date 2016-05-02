@@ -15,10 +15,10 @@ import java.util.LinkedList;
 public class MediaService extends Service implements MediaPlayer.OnBufferingUpdateListener, MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener {
     private MediaPlayer mediaPlayer;
     private LinkedList<Music> list;
-    private static final int MEDIATYPE_DEFAULT = 0;
-    private static final int MEDIATYPE_START = 1;
-    private static final int MEDIATYPE_PAUSED = 2;
-    private static final int MEDIATYPE_STOPPED = 3;
+    public static final int MEDIATYPE_DEFAULT = 0;
+    public static final int MEDIATYPE_START = 1;
+    public static final int MEDIATYPE_PAUSED = 2;
+    public static final int MEDIATYPE_STOPPED = 3;
     private int mediaType = MEDIATYPE_DEFAULT;
     private MyBinder binder = new MyBinder();
     private int index = 0;
@@ -70,7 +70,7 @@ public class MediaService extends Service implements MediaPlayer.OnBufferingUpda
     }
 
 
-    private void player() {
+    public void player() {
         switch (mediaType) {
             case MEDIATYPE_DEFAULT:
                 new Thread(new Runnable() {
@@ -81,17 +81,14 @@ public class MediaService extends Service implements MediaPlayer.OnBufferingUpda
                 }).start();
                 if (callBack != null)
                     callBack.onIndexChange(index);
-//                start.setText("播发ing");
                 mediaType = MEDIATYPE_START;
                 break;
             case MEDIATYPE_START:
                 mediaPlayer.pause();
-//                start.setText("暂停...");
                 mediaType = MEDIATYPE_PAUSED;
                 break;
             case MEDIATYPE_PAUSED:
                 mediaPlayer.start();
-//                start.setText("播发ing");
                 mediaType = MEDIATYPE_START;
                 break;
         }
@@ -110,6 +107,29 @@ public class MediaService extends Service implements MediaPlayer.OnBufferingUpda
             mediaPlayer.release();
             mediaPlayer = null;
         }
+    }
+
+    public void last() {
+        if (index != 0)
+            setIndex(index - 1);
+    }
+
+    public void next() {
+        if (index != list.size() - 1)
+            setIndex(index + 1);
+    }
+
+    public void setIndex(final int index) {
+        this.index = index;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                setUrl(list.get(index).getUrl());
+            }
+        }).start();
+        if (callBack != null)
+            callBack.onIndexChange(index);
+        mediaType = MEDIATYPE_START;
     }
 
     @Override
@@ -159,14 +179,6 @@ public class MediaService extends Service implements MediaPlayer.OnBufferingUpda
 
     public void setIsPressed(Boolean isPressed) {
         this.isPressed = isPressed;
-    }
-
-    public int getPosition() {
-        return mediaPlayer.getCurrentPosition();
-    }
-
-    public int getDuration() {
-        return mediaPlayer.getDuration();
     }
 
     public Boolean getIsPlaying() {

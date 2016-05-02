@@ -1,7 +1,11 @@
 package com.begin.player.fragment;
 
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.*;
 import android.support.v4.view.ViewPager;
@@ -11,6 +15,7 @@ import android.view.ViewGroup;
 
 import com.begin.player.R;
 import com.begin.player.activity.MainActivity;
+import com.begin.player.service.MediaService;
 
 public class HomeFragment extends Fragment {
 
@@ -18,6 +23,17 @@ public class HomeFragment extends Fragment {
     Fragment[] fragments = new Fragment[2];
     private TabLayout mTabLayout;
     private ViewPager mViewPager;
+
+    private ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+        }
+    };
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -39,6 +55,8 @@ public class HomeFragment extends Fragment {
                 startActivity(intent);
             }
         });
+
+        getActivity().bindService(new Intent(getActivity(), MediaService.class), serviceConnection, Context.BIND_AUTO_CREATE);
 
         return view;
     }

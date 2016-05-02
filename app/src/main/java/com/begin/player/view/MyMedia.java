@@ -4,11 +4,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.media.AudioManager;
-import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.IBinder;
-import android.support.annotation.NonNull;
 import android.view.View;
 import android.widget.Button;
 import android.widget.SeekBar;
@@ -17,7 +14,6 @@ import android.widget.TextView;
 import com.begin.player.bean.Music;
 import com.begin.player.service.MediaService;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -29,7 +25,6 @@ public class MyMedia implements View.OnClickListener, SeekBar.OnSeekBarChangeLis
     private Button last;
     private Button start;
     private Button next;
-    //    private MediaPlayer mediaPlayer;
     private TextView nowTime;
     private TextView maxTime;
     private SeekBar seekBar;
@@ -38,32 +33,28 @@ public class MyMedia implements View.OnClickListener, SeekBar.OnSeekBarChangeLis
 //    private static final int MEDIATYPE_PAUSED = 2;
 //    private static final int MEDIATYPE_STOPPED = 3;
 //    private int mediaType = MEDIATYPE_DEFAULT;
-    private LinkedList<Music> list;
-    private int index = 0;
+//    private int index = 0;
     private MediaService mediaService;
-
-    private static MyMedia uniqueInstance = null;
-
-    public static MyMedia getInstance(Context context, SeekBar seekBar, Button start) {
-        if (uniqueInstance == null) {
-            uniqueInstance = new MyMedia(context, seekBar, start);
-        }
-        return uniqueInstance;
-    }
+    private MediaService.onIndexChange callBack;
+    private LinkedList<Music> list;
+    private boolean mBound = false;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             mediaService = ((MediaService.MyBinder) service).getService();
+            mediaService.setOnIndexChangeListener(callBack);
+            mediaService.setList(list);
+            mBound = true;
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
-
+            mBound = false;
         }
     };
 
-    private MyMedia(Context context, SeekBar seekBar, Button start) {
+    public MyMedia(Context context, SeekBar seekBar, Button start) {
         this.start = start;
         this.seekBar = seekBar;
         seekBar.setOnSeekBarChangeListener(this);
@@ -79,7 +70,6 @@ public class MyMedia implements View.OnClickListener, SeekBar.OnSeekBarChangeLis
 //        mediaPlayer.setOnCompletionListener(this);
 
         (new Timer()).schedule(timerTask, 0, 500);
-
     }
 
     public void setTimeView(TextView nowTime, TextView maxTime) {
@@ -168,43 +158,52 @@ public class MyMedia implements View.OnClickListener, SeekBar.OnSeekBarChangeLis
             if (mediaService.getIsPlaying() && seekBar.isPressed() == false) {
                 handler.sendEmptyMessage(0);
             }
+            mediaService.setIsPressed(seekBar.isPressed());
+            handler.sendEmptyMessage(1);
         }
     };
 
     Handler handler = new Handler() {
         public void handleMessage(android.os.Message msg) {
-            int position = mediaService.getMediaPlayer().getCurrentPosition();
-            int duration = mediaService.getMediaPlayer().getDuration();
-            if (duration > 0) {
-                seekBar.setMax(duration);
-                seekBar.setProgress(position);
-                if (maxTime != null)
-                    maxTime.setText(showTime(duration));
-                if (nowTime != null)
-                    nowTime.setText(showTime(position));
+            if (msg.what == 0) {
+                int position = mediaService.getMediaPlayer().getCurrentPosition();
+                int duration = mediaService.getMediaPlayer().getDuration();
+                if (duration > 0) {
+                    seekBar.setMax(duration);
+                    seekBar.setProgress(position);
+                    if (maxTime != null)
+                        maxTime.setText(showTime(duration));
+                    if (nowTime != null)
+                        nowTime.setText(showTime(position));
+                }
+            }
+            if (msg.what == 1) {
+                seekBar.setSecondaryProgress(mediaService.getSecondaryProgress());
+                switch (mediaService.getMediaType()) {
+                    case MediaService.MEDIATYPE_DEFAULT:
+                        break;
+                    case MediaService.MEDIATYPE_START:
+                        start.setText("播放ing");
+                        break;
+                    case MediaService.MEDIATYPE_PAUSED:
+                        start.setText("暂停...");
+                        break;
+                    case MediaService.MEDIATYPE_STOPPED:
+                        break;
+                }
             }
         }
     };
 
-//    public void setIndex(final int index) {
-//        this.index = index;
-//        new Thread(new Runnable() {
-//            @Override
-//            public void run() {
-//                setUrl(list.get(index).getUrl());
-//            }
-//        }).start();
-//        if (callBack != null)
-//            callBack.onIndexChange(index);
-//        start.setText("播发ing");
-//        mediaType = MEDIATYPE_START;
-//    }
-//
-//    public void setList(LinkedList<Music> list) {
-//        this.list = list;
-//    }
-//
-//    public void setUrl(String url) {
+    public void setIndex(int index) {
+        mediaService.setIndex(index);
+    }
+
+    public void setList(LinkedList<Music> list) {
+        this.list = list;
+    }
+
+    //    public void setUrl(String url) {
 //        mediaPlayer.reset();
 //        try {
 //            mediaPlayer.setDataSource(url);
@@ -218,20 +217,20 @@ public class MyMedia implements View.OnClickListener, SeekBar.OnSeekBarChangeLis
 //        return mediaPlayer;
 //    }
 //
-//    public void start() {
-//        mediaPlayer.start();
-//    }
-//
-//    public void pause() {
-//        mediaPlayer.pause();
-//    }
-//
-//    public void stop() {
-//        if (mediaPlayer != null) {
-//            mediaPlayer.release();
-//            mediaPlayer = null;
-//        }
-//    }
+    public void start() {
+        mediaService.start();
+    }
+
+    public void pause() {
+        mediaService.pause();
+    }
+
+    public void stop() {
+        if (mediaService != null) {
+            mediaService.stop();
+            mediaService.unbindService(serviceConnection);
+        }
+    }
 //
 //
 //    @Override
@@ -300,7 +299,7 @@ public class MyMedia implements View.OnClickListener, SeekBar.OnSeekBarChangeLis
                 last();
                 break;
             case 2:
-                player();
+                mediaService.player();
                 break;
             case 3:
                 next();
@@ -309,20 +308,14 @@ public class MyMedia implements View.OnClickListener, SeekBar.OnSeekBarChangeLis
     }
 
     private void last() {
-        if (index != 0)
-            setIndex(index - 1);
+        mediaService.last();
     }
 
     private void next() {
-        if (index != list.size() - 1)
-            setIndex(index + 1);
+        mediaService.next();
     }
 
-//    public void setOnIndexChangeListener(onIndexChange callBack) {
-//        this.callBack = callBack;
-//    }
-//
-//    public interface onIndexChange {
-//        public void onIndexChange(int index);
-//    }
+    public void setOnIndexChangeListener(MediaService.onIndexChange callBack) {
+        this.callBack = callBack;
+    }
 }
