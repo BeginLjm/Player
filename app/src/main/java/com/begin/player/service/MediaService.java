@@ -52,6 +52,7 @@ public class MediaService extends Service implements MediaPlayer.OnBufferingUpda
     }
 
     public void setOnIndexChangeListener(onIndexChange callBack) {
+        this.callBack = null;
         this.callBack = callBack;
     }
 
@@ -79,6 +80,7 @@ public class MediaService extends Service implements MediaPlayer.OnBufferingUpda
                         setUrl(list.get(index).getUrl());
                     }
                 }).start();
+                reSetList(index);
                 if (callBack != null)
                     callBack.onIndexChange(index);
                 mediaType = MEDIATYPE_START;
@@ -127,9 +129,17 @@ public class MediaService extends Service implements MediaPlayer.OnBufferingUpda
                 setUrl(list.get(index).getUrl());
             }
         }).start();
+        reSetList(index);
         if (callBack != null)
             callBack.onIndexChange(index);
         mediaType = MEDIATYPE_START;
+    }
+
+    private void reSetList(int index) {
+        for (int i = 0; i < list.size(); i++) {
+            list.get(i).setPlayer(false);
+        }
+        list.get(index).setPlayer(true);
     }
 
     @Override
@@ -160,6 +170,7 @@ public class MediaService extends Service implements MediaPlayer.OnBufferingUpda
                     setUrl(list.get(index).getUrl());
                 }
             }).start();
+            reSetList(index);
             if (callBack != null)
                 callBack.onIndexChange(index);
         }
@@ -187,5 +198,13 @@ public class MediaService extends Service implements MediaPlayer.OnBufferingUpda
 
     public MediaPlayer getMediaPlayer() {
         return mediaPlayer;
+    }
+
+    public LinkedList<Music> getList() {
+        return list;
+    }
+
+    public int getIndex() {
+        return index;
     }
 }

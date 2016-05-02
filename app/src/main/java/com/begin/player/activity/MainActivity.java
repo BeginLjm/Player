@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -29,10 +30,6 @@ import java.util.TimerTask;
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemClickListener, MediaService.onIndexChange, SeekBar.OnSeekBarChangeListener, View.OnClickListener {
 
     private ListView mList;
-    String url1 = "http://119.29.98.71/5.mp3";
-    String url2 = "http://119.29.98.71/6.mp3";
-    String url3 = "http://119.29.98.71/7.mp3";
-    private LinkedList<Music> list;
     private MyAdapter adapter;
     private TextView mTvNowTime;
     private TextView mTvMaxTime;
@@ -47,13 +44,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         public void onServiceConnected(ComponentName name, IBinder service) {
             mediaService = ((MediaService.MyBinder) service).getService();
             mediaService.setOnIndexChangeListener(MainActivity.this);
-            mediaService.setList(list);
+            adapter.setList(mediaService.getList());
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
         }
     };
+    private Timer timer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,14 +62,26 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         mSeekBar.setOnSeekBarChangeListener(this);
         mBtPlay.setOnClickListener(this);
+        mBtLast.setOnClickListener(this);
+        mBtNext.setOnClickListener(this);
 
         bindService(new Intent(MainActivity.this, MediaService.class), serviceConnection, Context.BIND_AUTO_CREATE);
+
+        adapter.notifyDataSetChanged();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        (new Timer()).schedule(timerTask, 0, 500);
+        timer = new Timer();
+        timer.schedule(timerTask, 0, 500);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        timer.cancel();
+        timer = null;
     }
 
     @Override
@@ -90,10 +100,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         mList = (ListView) findViewById(R.id.list);
 
-        list = new LinkedList<>();
-        list.add(new Music("5", url1, false));
-        list.add(new Music("6", url2, false));
-        list.add(new Music("7", url3, false));
         adapter = new MyAdapter();
         mList.setAdapter(adapter);
         mList.setOnItemClickListener(this);
@@ -170,10 +176,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
     @Override
     public void onIndexChange(int index) {
-        for (int i = 0; i < list.size(); i++) {
-            list.get(i).setPlayer(false);
-        }
-        list.get(index).setPlayer(true);
+//        for (int i = 0; i < list.size(); i++) {
+//            list.get(i).setPlayer(false);
+//        }
+//        list.get(index).setPlayer(true);
         adapter.notifyDataSetChanged();
     }
 
@@ -193,9 +199,18 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     }
 
     private class MyAdapter extends BaseAdapter {
+        private LinkedList<Music> list;
+
+        public void setList(LinkedList<Music> list) {
+            this.list = list;
+            notifyDataSetChanged();
+        }
+
         @Override
         public int getCount() {
-            return list.size();
+            if (list != null)
+                return list.size();
+            return 0;
         }
 
         @Override
@@ -210,13 +225,17 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            TextView textView = new TextView(MainActivity.this);
-            textView.setText(list.get(position).getName());
-            if (list.get(position).getPlayer()) {
-                textView.setTextColor(0x12332111);
+            if (list != null) {
+                TextView textView = new TextView(MainActivity.this);
+                textView.setText(list.get(position).getName());
+                if (list.get(position).getPlayer()) {
+                    textView.setTextColor(0x12332111);
+                }
+                textView.setPadding(10, 10, 10, 10);
+                return textView;
+            } else {
+                return null;
             }
-            textView.setPadding(10, 10, 10, 10);
-            return textView;
         }
     }
 
